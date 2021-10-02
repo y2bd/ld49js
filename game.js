@@ -5,6 +5,9 @@
 'use strict';
 
 glOverlay = !isChrome; // fix slow rendering when not chrome
+debugOverlay = true;
+fixedWidth = 720;
+fixedHeight = 720;
 
 let particleEmiter, overlayCanvas, overlayContext;
 
@@ -33,6 +36,11 @@ function gameInit() {
   gravity = 0;
 
   ship = new Ship(cameraPos);
+
+  for (let i = 0; i < 128; i++) {
+    const circleOffset = randInCircle(64, 2);
+    new Asteroid(cameraPos.add(circleOffset));
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -42,20 +50,28 @@ function gameUpdate() {
     playSound(sound_click, mousePos);
     cameraPos = cameraPos.subtract(vec2(4, 0));
   }
+
+  if (mouseWasPressed(1)) {
+    playSound(sound_click, mousePos);
+    cameraPos = cameraPos.add(vec2(4, 0));
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 function gameUpdatePost() {
-
+  if (cameraPos.distanceSquared(ship.pos) >= 9) {
+    const offset = cameraPos.subtract(ship.pos).normalize().scale(3);
+    cameraPos = ship.pos.add(offset);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 function gameRender() {
   // draw a grey square without using webgl
-  drawCanvas2D(cameraPos, tileCollisionSize.add(vec2(5)), 0, 0, (context) => {
-    context.fillStyle = '#333'
-    context.fillRect(-.5, -.5, 1, 1);
-  });
+  // drawCanvas2D(cameraPos, tileCollisionSize.add(vec2(5)), 0, 0, (context) => {
+  //   context.fillStyle = '#333'
+  //   context.fillRect(-.5, -.5, 1, 1);
+  // });
 
   drawRect(tileCollisionSize.scale(.5).subtract(vec2(48, 0)), vec2(4, 4), new Color(0.5, 0, 0), 0);
 }
@@ -78,7 +94,6 @@ function gameRenderPost() {
     overlayContext.shadowBlur = shadow;
     overlayContext.fillText(text, x, y);
   }
-  drawOverlayText('Hello World ' + cameraPos.x, overlayCanvas.width / 2, 40);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

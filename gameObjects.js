@@ -7,7 +7,7 @@ class Ship extends EngineObject {
     // your object init code here
 
     this._particleEmiter = new ParticleEmitter(
-      this.pos, 1, 0, 200, PI / 6, // pos, emitSize, emitTime, emitRate, emiteCone
+      this.pos, 1, 0, 10, PI / 6, // pos, emitSize, emitTime, emitRate, emiteCone
       2, vec2(16),                            // tileIndex, tileSize
       new Color, new Color(0, 0, 0),            // colorStartA, colorStartB
       new Color(1, 1, 1, 0), new Color(0, 0, 0, 0), // colorEndA, colorEndB
@@ -17,6 +17,8 @@ class Ship extends EngineObject {
     );
     this._particleEmiter.elasticity = .3;
     this._particleEmiter.trailScale = 2;
+
+    this.setCollision(true, false);
   }
 
   update() {
@@ -35,6 +37,10 @@ class Ship extends EngineObject {
     this._particleEmiter.pos = this.pos;
     this._particleEmiter.emitRate = this._moveInput.y > 0 ? 250 : 0;
     this._particleEmiter.angle = this.angle - PI / 2;
+
+    if (this._shootWasPressed) {
+      new Bullet(this.pos, this.angle);
+    }
   }
 
   render() {
@@ -44,7 +50,151 @@ class Ship extends EngineObject {
 
   _handleInputs() {
     // movement control
-    this._moveInput = isUsingGamepad ? gamepadStick(0) :
-      vec2(keyIsDown(39) - keyIsDown(37), keyIsDown(38) - keyIsDown(40));
+    this._moveInput = vec2(keyIsDown(39) - keyIsDown(37), keyIsDown(38) - keyIsDown(40));
+
+    this._shootWasPressed = keyWasPressed(32);
+  }
+}
+
+class Asteroid extends EngineObject {
+  static Types = { LARGE: "L", MEDIUM: "M", SMALL: "S" };
+  static RandType() {
+    switch (randInt(0, 7)) {
+      case 0:
+        return Asteroid.Types.SMALL;
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+        return Asteroid.Types.MEDIUM;
+      case 5:
+      case 6:
+      default:
+        return Asteroid.Types.LARGE
+    }
+  }
+  static SizeFromType(type = Asteroid.Types.LARGE) {
+    switch (type) {
+      case Asteroid.Types.LARGE: return vec2(4, 4);
+      case Asteroid.Types.MEDIUM: return vec2(2, 2);
+      case Asteroid.Types.SMALL: return vec2(1, 1);
+    }
+  }
+
+  constructor(pos = vec2(), type = Asteroid.RandType()) {
+    super(
+      pos,
+      Asteroid.SizeFromType(type),
+      5,
+      vec2(16),
+      randInCircle().angle()
+    );
+
+    this.type = type;
+    this.velocity = randInCircle(0.05, 0.001);
+    this.angleVelocity = 0.02 * randSign();
+    this.angleDamping = 1;
+    this.damping = 1;
+
+    this.setCollision(true, true);
+  }
+
+  collideWithObject(other) {
+    const physicallyActive = !!ship && this.pos.distanceSquared(ship.pos) < 64;
+    if (!physicallyActive) {
+      return 0;
+    }
+
+    if (other instanceof Bullet || other instanceof Ship) {
+      // TODO SPAWN SMALLER
+      if (this.type === Asteroid.Types.LARGE) {
+        this._splitAsteroid(other, Asteroid.Types.MEDIUM);
+      } else if (this.type === Asteroid.Types.MEDIUM) {
+        this._splitAsteroid(other, Asteroid.Types.SMALL);
+      }
+
+      this.destroy();
+      this._particleExplosion();
+      return 0;
+    }
+
+    return 1;
+  }
+
+  update() {
+    super.update();
+  }
+
+  _splitAsteroid(other, targetType) {
+    const bulletVelocity = other.velocity.normalize();
+
+    const leftOffset = bulletVelocity.rotate(-PI / 2.0);
+    console.log(leftOffset);
+
+    const leftAsteroidPos = this.pos.add(leftOffset.scale(.5));
+    const rightAsteroidPos = this.pos.subtract(leftOffset.scale(.5));
+
+    new Asteroid(
+      leftAsteroidPos,
+      targetType
+    ).applyAcceleration(leftOffset.scale(0.1).rotate(PI / randInt(4, 8)).add(this.velocity));
+
+    new Asteroid(
+      rightAsteroidPos,
+      targetType
+    ).applyAcceleration(leftOffset.scale(-1).scale(0.1).rotate(-PI / randInt(4, 8)).add(this.velocity));
+  }
+
+  _particleExplosion() {
+    const white = new Color(1, 1, 1);
+    new ParticleEmitter(
+      this.pos, this.size, .1, 250, PI,
+      5, vec2(16),
+      white, white,
+      white.scale(1, 0), white.scale(1, 0),
+      .5, .6, .3, .1, .05,
+      .99, .95, .4, PI, .1,
+      1, 0, 1
+    );
+  }
+}
+
+class Bullet extends EngineObject {
+  static Speed = .8;
+
+  constructor(pos = vec2(), shipAngle = 0.0) {
+    super(
+      pos,
+      vec2(0.7, 0.3),
+      6,
+      defaultTileSize,
+      shipAngle
+    );
+
+    this.velocity = vec2(
+      Bullet.Speed * Math.cos(shipAngle),
+      Bullet.Speed * -Math.sin(shipAngle)
+    );
+
+    this.setCollision(true, false);
+
+    // TODO destroy after distance
+  }
+
+  update() {
+    super.update();
+
+    if (ship && this.pos.distanceSquared(ship.pos) >= 144) {
+      this.destroy();
+    }
+  }
+
+  collideWithObject(other) {
+    if (other instanceof Asteroid) {
+      this.destroy();
+
+    }
+
+    return 1;
   }
 }
