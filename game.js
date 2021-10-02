@@ -37,7 +37,7 @@ function gameInit() {
 
   ship = new Ship(cameraPos);
 
-  for (let i = 0; i < 128; i++) {
+  for (let i = 0; i < 512; i++) {
     const circleOffset = randInCircle(64, 2);
     new Asteroid(cameraPos.add(circleOffset));
   }

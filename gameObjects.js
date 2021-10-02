@@ -11,7 +11,7 @@ class Ship extends EngineObject {
       2, vec2(16),                            // tileIndex, tileSize
       new Color, new Color(0, 0, 0),            // colorStartA, colorStartB
       new Color(1, 1, 1, 0), new Color(0, 0, 0, 0), // colorEndA, colorEndB
-      2, .2, .2, .1, .05,  // particleTime, sizeStart, sizeEnd, particleSpeed, particleAngleSpeed
+      .5, .2, .2, .1, .05,  // particleTime, sizeStart, sizeEnd, particleSpeed, particleAngleSpeed
       .99, 1, 1, PI, .05,  // damping, angleDamping, gravityScale, particleCone, fadeRate, 
       .5, 1                // randomness, collide, additive, randomColorLinear, renderOrder
     );
@@ -100,7 +100,7 @@ class Asteroid extends EngineObject {
   }
 
   collideWithObject(other) {
-    const physicallyActive = !!ship && this.pos.distanceSquared(ship.pos) < 64;
+    const physicallyActive = !!ship && this.pos.distanceSquared(ship.pos) < 128;
     if (!physicallyActive) {
       return 0;
     }
@@ -122,7 +122,21 @@ class Asteroid extends EngineObject {
   }
 
   update() {
+    const physicallyActive = !!ship && this.pos.distanceSquared(ship.pos) < 250;
+    if (!physicallyActive) {
+      return;
+    }
+
     super.update();
+  }
+
+  render() {
+    const physicallyActive = !!ship && this.pos.distanceSquared(ship.pos) < 250;
+    if (!physicallyActive) {
+      return;
+    }
+
+    super.render();
   }
 
   _splitAsteroid(other, targetType) {
