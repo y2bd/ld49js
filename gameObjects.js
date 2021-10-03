@@ -4,6 +4,8 @@ const ROT_ACCEL = .07;
 const PHYSICALLY_ACTIVE_DISTANCE_SQUARED = 600;
 const VISUALLY_ACTIVE_DISTANCE_SQUARED = 400;
 
+const DIALOGUE_DISTANCE_SQUARED = 100;
+
 class Ship extends EngineObject {
   constructor(pos) {
     super(pos, vec2(1, 1), 2, vec2(16, 16));
@@ -119,6 +121,8 @@ class Asteroid extends EngineObject {
       } else if (this.type === Asteroid.Types.SMALL) {
         addLog('I shoot a small asteroid and it fizzles out.', SEVERITY.VERBOSE);
       }
+
+      Lance.Current.collectOre();
 
       this.destroy();
       this._particleExplosion();
@@ -241,6 +245,17 @@ class Bullet extends EngineObject {
 }
 
 class Lance extends EngineObject {
+  static QuestStatuses = {
+    NotStarted: 0,
+    Started: 1,
+    InProgress: 2,
+    Finished: 3,
+    Rewarded: 4
+  }
+
+  static Current = undefined;
+  static OreRequirement = 15;
+
   constructor(pos = vec2()) {
     super(
       pos,
@@ -249,7 +264,16 @@ class Lance extends EngineObject {
       defaultTileSize,
       0,
       FRIEND_GREEN
-    )
+    );
+
+    this._hadEnteredDialogueRange = false;
+    this._questStatus = Lance.QuestStatuses.NotStarted;
+    this._dialogueCancellationToken = undefined;
+    this._metAtLeastOnce = false;
+
+    this._currentOreCollected = 0;
+
+    Lance.Current = this;
   }
 
   update() {
@@ -260,11 +284,102 @@ class Lance extends EngineObject {
     }
 
     super.update();
-
     this.angle = this.pos.subtract(ship.pos).rotate(-PI / 2).angle();
+
+    if (!ship || ship.pos.distanceSquared(this.pos) >= DIALOGUE_DISTANCE_SQUARED) {
+      if (this._hadEnteredDialogueRange) {
+        this._hadEnteredDialogueRange = false;
+        this.onDialogueExit();
+      }
+    } else if (!this._hadEnteredDialogueRange) {
+      this._hadEnteredDialogueRange = true;
+      this.onDialogueEnter();
+    }
   }
 
   render() {
     super.render();
+  }
+
+  onDialogueEnter() {
+    if (this._questStatus === Lance.QuestStatuses.NotStarted) {
+      this._questStatus = Lance.QuestStatuses.Started;
+      const { dialogPromise, cancellationToken } = playDialog([
+        ...(!this._metAtLeastOnce ? [`@BREAK"Hey there," said the green ship.`, `"I've not seen anyone around here in a while."`] : [`@BREAK"Ah, you're back."`]),
+        !this._metAtLeastOnce ? `@BREAK"I've seen plenty of asteroids, if that counts," I shoot back.` : `@BREAK"Yes, turns out the asteroids weren't as interesting as I would have hoped," I admit.`,
+        `@BREAK"Yeah there's plenty of them. `, `There's also plenty of this red gas if you haven't already noticed."`,
+        `@BREAK"It's corrosive, I wouldn't last a second in there."`,
+        `@BREAK"You won't, unless you turn on your energy shields."`,
+        `@BREAK"I can't. Locked by the corporation, `, `I don't have enough credits to enable them."`,
+        `@BREAK"You're still relying on corp for upgrades? `, `There's other ways of unlocking the extra subsystems," the green ship informs me.`,
+        `@BREAK"In fact, tell ya what," the green ship continues, `, `"I'm scheduled to harvest fifteen ore today. `, `If you do that for me I'll show you how to unlock the shields."`,
+        `@BREAK"Sure. I was shooting asteroids anyway."`,
+        `@BREAK`
+      ]);
+
+      this._dialogueCancellationToken = cancellationToken;
+      dialogPromise.then((dialogCompleted) => {
+        if (dialogCompleted) {
+          this._questStatus = Lance.QuestStatuses.InProgress;
+          this._dialogueCancellationToken = undefined;
+        }
+      })
+    }
+
+    if (this._questStatus === Lance.QuestStatuses.Finished) {
+      const { dialogPromise, cancellationToken } = playDialog([
+        `@BREAK"Ah, you're back. `, `And it looks like you have all the ore too. `, `Thanks, all in a day's work!"`,
+        `@BREAK"Yeah, working all the day in, sure. `, `You said you'd show me how to turn on these shields."`,
+        `@BREAK"Give me a second, `, `I'm radioing some codes over to your ship. You should see them enable shortly."`,
+        `@BREAK`
+      ]);
+
+      this._dialogueCancellationToken = cancellationToken;
+      dialogPromise.then((dialogCompleted) => {
+        if (dialogCompleted) {
+          this._questStatus = Lance.QuestStatuses.Rewarded;
+          this._dialogueCancellationToken = undefined;
+
+          addLog(`My ship's control panel states that the shields are now online.`, SEVERITY.SUCCESS);
+          addLog(`@BREAK`, SEVERITY.SUCCESS);
+        }
+      })
+    }
+
+    this._metAtLeastOnce = true;
+  }
+
+  onDialogueExit() {
+    if (this._dialogueCancellationToken && this._questStatus === Lance.QuestStatuses.Started) {
+      this._dialogueCancellationToken();
+      this._questStatus = Lance.QuestStatuses.NotStarted;
+
+      addLog('@BREAKI left before we could finish talking.', SEVERITY.DIALOGUE);
+      addLog('@BREAK', SEVERITY.DIALOGUE);
+    }
+
+
+    if (this._dialogueCancellationToken && this._questStatus === Lance.QuestStatuses.Finished) {
+      this._dialogueCancellationToken();
+
+      addLog('@BREAKI left before we could finish talking.', SEVERITY.DIALOGUE);
+      addLog('@BREAK', SEVERITY.DIALOGUE);
+    }
+  }
+
+  collectOre() {
+    if (this._questStatus === Lance.QuestStatuses.InProgress) {
+      this._currentOreCollected++;
+
+      if (this._currentOreCollected < Lance.OreRequirement) {
+        addLog(`@BREAKI collected some ore. ${this._currentOreCollected} left to go.`, SEVERITY.SUCCESS);
+        addLog(`@BREAK`, SEVERITY.SUCCESS);
+      } else {
+        addLog(`@BREAKThat's all the ore I need. I should head back to get my shields working.`, SEVERITY.SUCCESS);
+        addLog(`@BREAK`, SEVERITY.SUCCESS);
+
+        this._questStatus = Lance.QuestStatuses.Finished;
+      }
+    }
   }
 }

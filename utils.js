@@ -22,3 +22,7 @@ function componentToHex(c) {
 function rgbToHex(r, g, b) {
   return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
 }
+
+function delay(ms = 500) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

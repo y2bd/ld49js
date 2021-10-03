@@ -14,6 +14,7 @@ let particleEmiter, overlayCanvas, overlayContext;
 // zzfx sounds
 const sound_click = [.5, 1];
 
+// player
 let ship;
 
 ///////////////////////////////////////////////////////////////////////////////
