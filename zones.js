@@ -19,7 +19,9 @@ const COLOR_ZONE_MAP = {
   /** HEAVY */
   '#1D2B53': () => HeavyZone,
   /** RED GAS */
-  '#FF004D': () => EmptyZone,
+  '#FF004D': () => RedGasZone,
+  /** LANCE QUEST */
+  '#FFA300': () => LanceZone
 }
 
 function loadZoneMap() {
@@ -36,8 +38,8 @@ function loadZoneMap() {
       for (let row = 0; row < zonesImage.height; row++) {
         const zonesRow = [];
         for (let col = 0; col < zonesImage.width; col++) {
-          const [r, g, b] = zonesCanvas.getContext('2d').getImageData(col, row, 1, 1).data;
-          zonesRow[col] = COLOR_ZONE_MAP[rgbToHex(r, g, b).toUpperCase()]();
+          const [r, g, b] = zonesCanvas.getContext('2d').getImageData(col, zonesImage.height - row - 1, 1, 1).data;
+          zonesRow[col] = (COLOR_ZONE_MAP[rgbToHex(r, g, b).toUpperCase()] || COLOR_ZONE_MAP['#C2C3C7'])();
         }
         zonesMap[row] = zonesRow;
       }
@@ -59,7 +61,8 @@ class Zone extends EngineObject {
     this._randTempColor = randColor();
     this._randTempColor.a = 0.2;
 
-    this._wasEntered = false;
+    this._hadEnteredActiveBoundary = false;
+    this._hadShipEnteredZone = false;
   }
 
   get globalCenterX() {
@@ -90,28 +93,58 @@ class Zone extends EngineObject {
     return !!ship && ship.pos.distanceSquared(this.globalCenter) <= ZONE_ACTIVE_DISTANCE_SQUARED;
   }
 
+  get isContainingShip() {
+    return (
+      ship &&
+      ship.pos.x >= this.globalTopLeftX &&
+      ship.pos.y >= this.globalTopLeftY &&
+      ship.pos.x <= this.globalTopLeftX + ZONE_WIDTH &&
+      ship.pos.y <= this.globalTopLeftY + ZONE_HEIGHT
+    );
+  }
+
   update() {
+    // handle active culling
     if (!this.isActive) {
-      if (this._wasEntered) {
-        this._wasEntered = false;
-        this.onExit();
+      if (this._hadEnteredActiveBoundary) {
+        this._hadEnteredActiveBoundary = false;
+        this.onExitActiveBoundary();
       }
 
       return;
     }
 
-    if (!this._wasEntered) {
-      this._wasEntered = true;
-      this.onEnter();
+    if (!this._hadEnteredActiveBoundary) {
+      this._hadEnteredActiveBoundary = true;
+      this.onEnterActiveBoundary();
+    }
+
+    // handle ship going in and leaving
+    if (!this.isContainingShip) {
+      if (this._hadShipEnteredZone) {
+        this._hadShipEnteredZone = false;
+        this.onShipExit();
+      }
+    } else if (!this._hadShipEnteredZone) {
+      this._hadShipEnteredZone = true;
+      this.onShipEnter();
     }
   }
 
-  onEnter() {
-    console.log('ZONE', this._row, this._col, 'WAS ENTERED');
+  onEnterActiveBoundary() {
+    console.log('ZONE', this._row, this._col, 'BECAME ACTIVE');
   }
 
-  onExit() {
-    console.log('ZONE', this._row, this._col, 'WAS EXITED');
+  onExitActiveBoundary() {
+    console.log('ZONE', this._row, this._col, 'BECAME INACTIVE');
+  }
+
+  onShipEnter() {
+    console.log('ZONE', this._row, this._col, 'HOLDS SHIP');
+  }
+
+  onShipExit() {
+    console.log('ZONE', this._row, this._col, 'LOST SHIP');
   }
 
   render() {
@@ -129,8 +162,8 @@ class EmptyZone extends Zone {
     this._asteroids = [];
   }
 
-  onEnter() {
-    super.onEnter();
+  onEnterActiveBoundary() {
+    super.onEnterActiveBoundary();
     this._clearAsteroids();
 
     while (this._asteroids.length < EmptyZone.AsteroidLimit) {
@@ -139,8 +172,8 @@ class EmptyZone extends Zone {
     }
   }
 
-  onExit() {
-    super.onExit();
+  onExitActiveBoundary() {
+    super.onExitActiveBoundary();
 
     // we clear on exit to get rid of em early
     // and clear again on entrance to get rid of stragglers
@@ -162,8 +195,8 @@ class HeavyZone extends Zone {
     this._asteroids = [];
   }
 
-  onEnter() {
-    super.onEnter();
+  onEnterActiveBoundary() {
+    super.onEnterActiveBoundary();
     const asteroidCountBefore = this._asteroids.length;
     this._asteroids = this._asteroids.filter(asteroid => !asteroid.destroyed);
     console.log("CLEARED", asteroidCountBefore - this._asteroids.length, "BIG ASTEROIDS")
@@ -174,7 +207,44 @@ class HeavyZone extends Zone {
     }
   }
 
-  onExit() {
-    super.onExit();
+  onExitActiveBoundary() {
+    super.onExitActiveBoundary();
+  }
+}
+
+class RedGasZone extends Zone {
+  static RedColor = (() => { const color = rgb(255, 0, 117); color.a = 0.3; return color; })();
+  static InSomeRedFog = false;
+
+  constructor(row = 0, col = 0) {
+    super(row, col);
+  }
+
+  onShipEnter() {
+    super.onShipEnter();
+
+    if (!RedGasZone.InSomeRedFog) {
+      RedGasZone.InSomeRedFog = false;
+      addLog('I enter a red fog, corrosive to my ship. If I stay here too long, I will perish.', SEVERITY.ERROR);
+    }
+  }
+
+  onShipExit() {
+    super.onShipExit();
+    RedGasZone.InSomeRedFog = false;
+  }
+
+  render() {
+    super.render();
+    drawRect(this.globalCenter, vec2(ZONE_WIDTH, ZONE_HEIGHT), RedGasZone.RedColor);
+  }
+}
+
+class LanceZone extends Zone {
+  constructor(row = 0, col = 0) {
+    super(row, col);
+    this._isAlwaysActive = true;
+
+    new Lance(this.globalCenter);
   }
 }

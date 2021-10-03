@@ -12,7 +12,7 @@
       canvas {
         max-width: 720px;
         max-height: 720px;
-        transform: translate(calc(-50% - 160px), -50%) !important;
+        transform: translate(calc(-50% - 180px), -50%) !important;
         outline: 2px solid white;
         border: 4px solid #ccc;
         padding: 8px;
@@ -22,7 +22,7 @@
         position: absolute;
         top: 50%;
         left: 50%;
-        width: 280px;
+        width: 320px;
         height: 720px;
         transform: translate(calc(-50% + 380px), -50%) !important;
 
@@ -31,7 +31,36 @@
         padding: 8px;
 
         color: white;
-        font: 18px monospace;
+        font: 14px;
+        font-family: Consolas, "Lucida Console", "Monaco", monospace;
+
+        overflow: auto;
+
+        scrollbar-width: thin;
+      }
+
+      aside#log::-webkit-scrollbar {
+        width: 4; /* Remove scrollbar space */
+      }
+
+      aside#log p {
+        display: inline;
+      }
+
+      p.break {
+        display: block !important;
+      }
+
+      p.verbose {
+        color: #999;
+      }
+
+      p.warning {
+        color: rgb(240, 165, 0);
+      }
+
+      p.error {
+        color: rgb(255, 0, 117);
       }
     </style>
   </head>
@@ -39,9 +68,10 @@
     <script src="engine.all.js"></script>
     <script src="utils.js"></script>
     <script src="colors.js"></script>
+    <script src="log.js"></script>
     <script src="zones.js"></script>
-    <script src="game.js"></script>
     <script src="gameObjects.js"></script>
-    <aside id="log">hello</aside>
+    <script src="game.js"></script>
+    <aside id="log"></aside>
   </body>
 </html>

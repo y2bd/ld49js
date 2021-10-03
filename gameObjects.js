@@ -109,12 +109,31 @@ class Asteroid extends EngineObject {
       return 0;
     }
 
-    if (other instanceof Bullet || other instanceof Ship) {
-      // TODO SPAWN SMALLER
+    if (other instanceof Bullet) {
       if (this.type === Asteroid.Types.LARGE) {
+        addLog('I shoot a large asteroid and it splits in half.', SEVERITY.VERBOSE);
         this._splitAsteroid(other, Asteroid.Types.MEDIUM);
       } else if (this.type === Asteroid.Types.MEDIUM) {
+        addLog('I shoot a medium asteroid and it breaks into two.', SEVERITY.VERBOSE);
         this._splitAsteroid(other, Asteroid.Types.SMALL);
+      } else if (this.type === Asteroid.Types.SMALL) {
+        addLog('I shoot a small asteroid and it fizzles out.', SEVERITY.VERBOSE);
+      }
+
+      this.destroy();
+      this._particleExplosion();
+      return 0;
+    }
+
+    if (other instanceof Ship) {
+      if (this.type === Asteroid.Types.LARGE) {
+        addLog('I crash into a large asteroid and take damage.', SEVERITY.WARNING);
+        this._splitAsteroid(other, Asteroid.Types.MEDIUM);
+      } else if (this.type === Asteroid.Types.MEDIUM) {
+        addLog('I hit a medium asteroid, taking damage.', SEVERITY.WARNING);
+        this._splitAsteroid(other, Asteroid.Types.SMALL);
+      } else if (this.type === Asteroid.Types.SMALL) {
+        addLog('I run into a small asteroid and lose some health.', SEVERITY.WARNING);
       }
 
       this.destroy();
@@ -218,5 +237,34 @@ class Bullet extends EngineObject {
     }
 
     return 1;
+  }
+}
+
+class Lance extends EngineObject {
+  constructor(pos = vec2()) {
+    super(
+      pos,
+      vec2(2),
+      2,
+      defaultTileSize,
+      0,
+      FRIEND_GREEN
+    )
+  }
+
+  update() {
+    // the distance check has to be greater than the zone spawn distance or 
+    // we'll never spawn in asteroids lol
+    if (!ship || this.pos.distanceSquared(ship.pos) >= ZONE_ACTIVE_DISTANCE_SQUARED) {
+      return;
+    }
+
+    super.update();
+
+    this.angle = this.pos.subtract(ship.pos).rotate(-PI / 2).angle();
+  }
+
+  render() {
+    super.render();
   }
 }

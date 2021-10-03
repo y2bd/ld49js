@@ -1,0 +1,1 @@
+- Segments where the log stops and the player just has a flashblack while the game is still going
