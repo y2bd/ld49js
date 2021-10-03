@@ -24,23 +24,18 @@ function gameInit() {
   overlayContext = overlayCanvas.getContext('2d');
 
   // create tile collision and visible tile layer
-  initTileCollision(vec2(32, 16));
-  const tileLayer = new TileLayer(vec2(), tileCollisionSize);
-  tileLayer.redraw();
 
   // move camera to center of collision
-  cameraPos = tileCollisionSize.scale(.5);
+  cameraPos = vec2(0);
   cameraScale = 32;
-
-  // enable gravity
-  gravity = 0;
 
   ship = new Ship(cameraPos);
 
-  for (let i = 0; i < 512; i++) {
-    const circleOffset = randInCircle(64, 2);
-    new Asteroid(cameraPos.add(circleOffset));
-  }
+  loadZoneMap().then(zoneMap =>
+    zoneMap.forEach((row, ri) => row.forEach((ZoneType, ci) =>
+      new ZoneType(ri, ci)
+    ))
+  );
 }
 
 ///////////////////////////////////////////////////////////////////////////////

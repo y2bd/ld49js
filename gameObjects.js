@@ -126,16 +126,17 @@ class Asteroid extends EngineObject {
   }
 
   update() {
-    const phyiscallyActive = !!ship && this.pos.distanceSquared(ship.pos) < PHYSICALLY_ACTIVE_DISTANCE_SQUARED;
-    if (!phyiscallyActive) {
-      return;
+    // the distance check has to be greater than the zone spawn distance or 
+    // we'll never spawn in asteroids lol
+    if (ship && this.pos.distanceSquared(ship.pos) >= (ZONE_ACTIVE_DISTANCE_SQUARED * 2)) {
+      this.destroy();
     }
 
     super.update();
   }
 
   render() {
-    const visuallyActive = !!ship && this.pos.distanceSquared(ship.pos) < VISUALLY_ACTIVE_DISTANCE_SQUARED;
+    const visuallyActive = !!ship && this.pos.distanceSquared(ship.pos) < ZONE_HALF_ACTIVE_DISTANCE_SQUARED;
     if (!visuallyActive) {
       return;
     }
@@ -201,14 +202,12 @@ class Bullet extends EngineObject {
     );
 
     this.setCollision(true, false);
-
-    // TODO destroy after distance
   }
 
   update() {
     super.update();
 
-    if (ship && this.pos.distanceSquared(ship.pos) >= 144) {
+    if (ship && this.pos.distanceSquared(ship.pos) >= ZONE_HALF_ACTIVE_DISTANCE_SQUARED) {
       this.destroy();
     }
   }
@@ -216,7 +215,6 @@ class Bullet extends EngineObject {
   collideWithObject(other) {
     if (other instanceof Asteroid) {
       this.destroy();
-
     }
 
     return 1;
