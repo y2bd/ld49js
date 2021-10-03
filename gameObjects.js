@@ -1,6 +1,9 @@
 const MOVE_ACCEL = .01;
 const ROT_ACCEL = .07;
 
+const PHYSICALLY_ACTIVE_DISTANCE_SQUARED = 600;
+const VISUALLY_ACTIVE_DISTANCE_SQUARED = 400;
+
 class Ship extends EngineObject {
   constructor(pos) {
     super(pos, vec2(1, 1), 2, vec2(16, 16));
@@ -87,7 +90,8 @@ class Asteroid extends EngineObject {
       Asteroid.SizeFromType(type),
       5,
       vec2(16),
-      randInCircle().angle()
+      randInCircle().angle(),
+      ASTEROID_COLORS[randInt(0, ASTEROID_COLORS.length)]
     );
 
     this.type = type;
@@ -122,8 +126,8 @@ class Asteroid extends EngineObject {
   }
 
   update() {
-    const physicallyActive = !!ship && this.pos.distanceSquared(ship.pos) < 250;
-    if (!physicallyActive) {
+    const phyiscallyActive = !!ship && this.pos.distanceSquared(ship.pos) < PHYSICALLY_ACTIVE_DISTANCE_SQUARED;
+    if (!phyiscallyActive) {
       return;
     }
 
@@ -131,8 +135,8 @@ class Asteroid extends EngineObject {
   }
 
   render() {
-    const physicallyActive = !!ship && this.pos.distanceSquared(ship.pos) < 250;
-    if (!physicallyActive) {
+    const visuallyActive = !!ship && this.pos.distanceSquared(ship.pos) < VISUALLY_ACTIVE_DISTANCE_SQUARED;
+    if (!visuallyActive) {
       return;
     }
 
@@ -148,24 +152,30 @@ class Asteroid extends EngineObject {
     const leftAsteroidPos = this.pos.add(leftOffset.scale(.5));
     const rightAsteroidPos = this.pos.subtract(leftOffset.scale(.5));
 
-    new Asteroid(
+    const left = new Asteroid(
       leftAsteroidPos,
       targetType
-    ).applyAcceleration(leftOffset.scale(0.1).rotate(PI / randInt(4, 8)).add(this.velocity));
+    );
 
-    new Asteroid(
+    const right = new Asteroid(
       rightAsteroidPos,
       targetType
-    ).applyAcceleration(leftOffset.scale(-1).scale(0.1).rotate(-PI / randInt(4, 8)).add(this.velocity));
+    );
+
+    left.color = this.color;
+    right.color = this.color;
+
+    left.applyAcceleration(leftOffset.scale(0.1).rotate(PI / randInt(4, 8)).add(this.velocity));
+    right.applyAcceleration(leftOffset.scale(-0.1).rotate(-PI / randInt(4, 8)).add(this.velocity))
   }
 
   _particleExplosion() {
-    const white = new Color(1, 1, 1);
+    const particleColor = this.color;
     new ParticleEmitter(
       this.pos, this.size, .1, 250, PI,
       5, vec2(16),
-      white, white,
-      white.scale(1, 0), white.scale(1, 0),
+      particleColor, particleColor,
+      particleColor.scale(1, 0), particleColor.scale(1, 0),
       .5, .6, .3, .1, .05,
       .99, .95, .4, PI, .1,
       1, 0, 1
